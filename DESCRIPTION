@@ -1,0 +1,20 @@
+Package: tssUtils
+Title: Utilities for working with TSS sequencing data
+Version: 0.2.0
+Authors@R:
+    person(c("Benjamin", "Jean-Marie"), "Tremblay",
+           email = "benjamin.tremblay@tsl.ac.uk", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-7441-2951"))
+Description: A collection of utilities for analyzing csRNA-seq data, or with
+    any type of TSS sequencing data.
+Depends: R (>= 4.4.0)
+License: GPL (>= 3)
+Imports: AnnotationDbi, GenomicFeatures, GenomicRanges, GenomeInfoDb,
+    genomation, IRanges, matrixStats, methods, rtracklayer, S4Vectors,
+    stats, utils
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0), txdbmaker
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE, old_usage = TRUE)
+RoxygenNote: 7.3.2

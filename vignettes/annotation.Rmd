@@ -1,0 +1,178 @@
+---
+title: "Annotating csRNA-seq TSSs with tssUtils"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Annotating csRNA-seq TSSs with tssUtils}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette walks through a complete csRNA-seq annotation run on small
+synthetic data: classifying TSSs against transcript and feature
+annotations, filtering by expression, defining and quantifying enhancers,
+correlating TSS with enhancer expression, and computing per-sample TSS
+shape statistics.
+
+```{r}
+suppressPackageStartupMessages({
+  library(tssUtils)
+  library(GenomicRanges)
+  library(IRanges)
+})
+```
+
+## Reference data
+
+In a real run you would load a `TxDb` from disk (for example via
+`AnnotationDbi::loadDb()`) and BED files of additional features (TEs,
+miRNAs, ATAC peaks, …). For this vignette we build a tiny synthetic
+`TxDb` in memory using the `txdbmaker` (or older `GenomicFeatures`) helper.
+
+```{r}
+txGR <- GRanges("1",
+  IRanges(start = c(1000, 5000, 12000),
+    end =      c(2500, 7000, 14000)),
+  strand = c("+", "-", "+"),
+  type = "mRNA",
+  tx_id = 1:3,
+  tx_name = c("g1.1", "g2.1", "g3.1"))
+TxDb <- if (requireNamespace("txdbmaker", quietly = TRUE)) {
+  txdbmaker::makeTxDbFromGRanges(txGR)
+} else {
+  GenomicFeatures::makeTxDbFromGRanges(txGR)
+}
+txData <- prepTxData(TxDb)
+```
+
+A second feature set, here representing transposable elements:
+
+```{r}
+te <- GRanges("1",
+  IRanges(start = c(20000, 25000), end = c(20500, 25500)),
+  strand = c("+", "-"),
+  name = c("TE1", "TE2"))
+teData <- prepFeatureData(te, defaultType = "transposable_element")
+```
+
+Optional auxiliary peak annotations (any `GRanges` with `mcols$name`):
+
+```{r}
+atacPeaks <- GRanges("1",
+  IRanges(start = c(900, 24800), end = c(1100, 25200)),
+  name = c("atac_1", "atac_2"))
+```
+
+## Called TSSs and quantification
+
+The TSSs and CPM matrix you'd normally load from your csRNA-seq pipeline:
+
+```{r}
+TSS <- GRanges("1",
+  IRanges(start = c(1000, 1500, 5500, 12000, 20000, 25300, 30000),
+    width = 30),
+  strand = c("+", "-", "-", "+", "+", "-", "+"),
+  name = paste0("TSS_", 1:7))
+
+quant <- matrix(c(
+   5, 4, 6,
+   2, 1, 0,
+   3, 4, 5,
+   8, 7, 9,
+   1, 2, 1,
+   6, 5, 7,
+   0, 0, 0),
+  nrow = length(TSS), byrow = TRUE,
+  dimnames = list(TSS$name, c("s1", "s2", "s3")))
+```
+
+## Annotate
+
+```{r}
+anno <- annotateTSS(TSS, txData,
+  featureSets = list(TE = teData),
+  featureCoding = c(TE = "teTSS"),
+  peakAnnotations = list(ATAC = atacPeaks))
+anno[, c("TSS", "TSSTypeCoding", "TSSTypeLocation",
+  "TSSFeatOrientation", "FeatureID", "FeatureType")]
+```
+
+Filter to expressed TSSs (CPM >= 0.5 in at least 2 samples here, since the
+synthetic data has only 3 samples):
+
+```{r}
+exprFilt <- filterByExpression(quant, minCpm = 0.5, minSamples = 2)
+sum(exprFilt)
+```
+
+## Enhancers
+
+```{r}
+enhRes <- defineEnhancers(TSS, anno, exprFilt)
+enhRes$enh
+enhQuant <- quantifyEnhancers(enhRes$enh, TSS, quant)
+enhQuant
+enhStats <- enhancerStrandStats(enhRes$enh, TSS, quant, exprFilt,
+  peakAnnotations = list(ATAC = atacPeaks))
+enhStats
+```
+
+## TSS-enhancer correlations
+
+```{r}
+corrDf <- correlateTSSEnhancers(quant[exprFilt, , drop = FALSE], enhQuant,
+  TSS[exprFilt], enhRes$enh, minPCC = 0.5)
+corrDf
+```
+
+A BEDPE file of the correlation pairs (with the PCC embedded in the name):
+
+```{r}
+if (nrow(corrDf)) {
+  pairTSS <- TSS[match(corrDf$TSS, TSS$name)]
+  pairEnh <- enhRes$enh[match(corrDf$Enhancer, enhRes$enh$name)]
+  bedpePath <- tempfile(fileext = ".bedpe")
+  writeBEDPE(pairTSS, pairEnh, bedpePath,
+    names = paste0("corr", format(round(corrDf$PCC, 2), nsmall = 2),
+      "_INT_", seq_len(nrow(corrDf))))
+}
+```
+
+## Sample-resolved TSS shape
+
+For each sample we'd normally load a stranded bigWig pair via
+[`readSignal()`] (or `tssShapeFromBigWig()` for a directory of them).
+Here we synthesise a small coverage `GRanges` per sample:
+
+```{r}
+makeCov <- function(seed) {
+  set.seed(seed)
+  pos <- seq(1000, 1029)
+  GRanges("1", IRanges(pos, pos), strand = "+",
+    score = abs(rnorm(length(pos), mean = 5, sd = 2)))
+}
+signalList <- list(s1 = makeCov(1), s2 = makeCov(2), s3 = makeCov(3))
+shape <- tssShape(TSS[1], signalList,
+  percentiles = c(1e-99, 0.1, 0.5, 0.9, 1), minScore = 0)
+str(shape, max.level = 1)
+```
+
+Aggregate across samples to a single thick-coordinate `GRanges` for BED12
+export:
+
+```{r}
+shape <- tssShape(TSS, signalList, percentiles = c(0.1, 0.5, 0.9),
+  minScore = 0)
+thick <- aggregateTSSShape(shape, TSS, method = "median")
+thick
+```
+
+`tssThickBED()` is a convenience reshaper for hand-built BED12 records;
+combine it with `rtracklayer::export.bed()` to write to disk.
+
+```{r}
+sessionInfo()
+```

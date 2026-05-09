@@ -1,0 +1,9 @@
+^LICENSE\.md$
+^CLAUDE\.md$
+^annotate_tss\.R$
+^run_annotation\.R$
+^\.DS_Store$
+^.*\.Rproj$
+^\.Rproj\.user$
+^doc$
+^Meta$
