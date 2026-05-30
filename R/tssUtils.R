@@ -1,8 +1,8 @@
 #' tssUtils: Utilities for working with TSS sequencing data
 #'
 #' @description
-#' A collection of utilities for working with csRNA-seq, or with any TSS
-#' sequencing experimental data.
+#' A small collection of utilities for working with csRNA-seq data, or really
+#' with any kind of TSS sequencing data.
 #'
 #' @name tssUtils-pkg
 #' @aliases tssUtils-pkg

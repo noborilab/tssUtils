@@ -42,10 +42,10 @@ simpsonDiversity <- function(scores, minScore = 0) {
 
 #' Per-TSS shape statistics across one or more samples.
 #'
-#' For each TSS and each sample, computes the position of the maximum-score
-#' base, the maximum score itself, Shannon entropy, Simpson diversity, and
-#' positions at user-specified score percentiles. The percentile coordinates
-#' are computed via [calcPctiles()].
+#' For each TSS, and within each sample, this computes the position of the
+#' highest-scoring base, the maximum score itself, the Shannon entropy, the
+#' Simpson diversity, and the positions at whatever score percentiles you ask
+#' for. The percentile coordinates come from [calcPctiles()].
 #'
 #' @param TSS A `GRanges` of TSSs (with `mcols$name`).
 #' @param signalList Named list of stranded coverage `GRanges` (one per
@@ -122,8 +122,9 @@ tssShape <- function(TSS, signalList,
 
 #' File-based wrapper around [tssShape()].
 #'
-#' Loads paired stranded bigWig files for a set of samples and runs
-#' [tssShape()] on the resulting signal list.
+#' Loads the paired stranded bigWig files for a set of samples and then runs
+#' [tssShape()] over the resulting signal list, so you do not have to assemble
+#' that list yourself.
 #'
 #' @param TSS A `GRanges` of TSSs.
 #' @param bwDir Directory containing the bigWigs.
@@ -149,10 +150,10 @@ tssShapeFromBigWig <- function(TSS, bwDir, samples,
 
 #' Aggregate per-sample TSS shape into cross-sample peak coordinates.
 #'
-#' Produces a `GRanges` whose ranges match the input `TSS`, with `thickStart`
-#' and `thickEnd` mcols giving either the position of the sample with the
-#' highest score (`method = "max"`) or the across-sample median peak
-#' position (`method = "median"`).
+#' Produces a `GRanges` whose ranges match the input `TSS`, where the
+#' `thickStart` and `thickEnd` mcols give either the peak position from the
+#' single sample with the highest score (`method = "max"`), or the median peak
+#' position taken across all the samples (`method = "median"`).
 #'
 #' @param shape List of matrices returned by [tssShape()] (must contain
 #'   `maxPos` and `maxScore`).
@@ -186,8 +187,8 @@ aggregateTSSShape <- function(shape, TSS, method = c("max", "median")) {
 
 #' Build a thick-coordinate `GRanges` for BED12-style export.
 #'
-#' Convenience reshaper that sets the range coordinates and thick-start /
-#' thick-end mcols on a `GRanges` from numeric vectors.
+#' A small convenience reshaper that sets the range coordinates, along with the
+#' thick-start and thick-end mcols, on a `GRanges` from plain numeric vectors.
 #'
 #' @param TSS A `GRanges` whose ranges will be replaced.
 #' @param start,end Numeric vectors of new range start and end coordinates.

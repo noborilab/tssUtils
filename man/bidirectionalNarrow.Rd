@@ -24,10 +24,10 @@ peak-to-peak span; metadata column \code{name} carries the original
 \code{bdGR$name}.
 }
 \description{
-For each region in \code{bdGR}, find the highest-expression \code{+} strand and
-\code{-} strand TSS that overlaps it (using \code{tssMaxPos} to choose the peak
-position) and produce a \code{GRanges} whose start is the negative-strand peak
-and whose end is the positive-strand peak.
+For each region in \code{bdGR}, this finds the highest-expression \code{+} strand and
+\code{-} strand TSS overlapping it (using \code{tssMaxPos} to pick the peak position
+within each), and then returns a \code{GRanges} running from the negative-strand
+peak at its start to the positive-strand peak at its end.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

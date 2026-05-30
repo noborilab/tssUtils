@@ -1,8 +1,8 @@
 #' Write a BEDPE file from two `GRanges`
 #'
-#' Each pair `(x[i], y[i])` is written as a single BEDPE row. The leftmost
-#' interval of the pair is written as `chrom1/start1/end1` and the rightmost
-#' as `chrom2/start2/end2`.
+#' Each pair `(x[i], y[i])` becomes a single BEDPE row. Whichever of the two
+#' intervals sits furthest to the left is written as `chrom1/start1/end1`, and
+#' the other as `chrom2/start2/end2`.
 #'
 #' @param x The first `GRanges` object. It must be in the same order as the second.
 #' @param y The second `GRanges` object. It must be in the same order as the first.

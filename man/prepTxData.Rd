@@ -26,9 +26,10 @@ A named list with elements \code{feat}, \code{featTSS}, \code{featRC}, \code{fea
 and \code{defaultType} (\code{NA_character_}).
 }
 \description{
-Extracts transcripts and their TSS positions from a TxDb (and the
-reverse-complement variants), plus a transcript-to-type lookup. The
-returned list is consumed by \code{\link[=annotateTSS]{annotateTSS()}}.
+Pulls the transcripts and their TSS positions out of a TxDb (along with the
+reverse-complement variants, which the antisense rules need), and builds a
+transcript-to-type lookup to go with them. The returned list is what
+\code{\link[=annotateTSS]{annotateTSS()}} expects to be handed.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

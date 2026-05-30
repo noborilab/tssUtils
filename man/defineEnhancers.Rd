@@ -33,19 +33,21 @@ A list with three \code{GRanges} slots: \code{bdGR} (bidirectional regions),
 of both, with \code{name} mcol).
 }
 \description{
-Builds two sets of enhancer-like regions and returns them along with their
-merged union:
+Builds two kinds of enhancer-like region and hands them back together with
+their merged union:
 }
 \details{
 \itemize{
-\item \strong{Bidirectional ncTSS regions}: pairs of antisense ncTSSs whose ends
-are within \code{divergentDist} bp; the inter-pair span is taken as the region.
-\item \strong{Unidirectional intergenic ncTSS regions}: ncTSSs classified as
-\code{Intergenic} (or as one of \code{intergenicTypes}) and not divergent, extended
-\code{intergenicFlank} bp upstream of their 5' end.
+\item \strong{Bidirectional ncTSS regions}: pairs of antisense ncTSSs whose ends fall
+within \code{divergentDist} bp of each other, with the span between the pair
+taken as the region.
+\item \strong{Unidirectional intergenic ncTSS regions}: ncTSSs that were classified as
+\code{Intergenic} (or as one of \code{intergenicTypes}) and are not divergent, each
+extended \code{intergenicFlank} bp upstream of its 5' end.
 }
 
-Regions overlapping any pcTSS are dropped.
+Any region that ends up overlapping a pcTSS is dropped, since it is more
+likely to belong to a known promoter than to an enhancer.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

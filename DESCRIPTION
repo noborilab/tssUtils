@@ -5,8 +5,8 @@ Authors@R:
     person(c("Benjamin", "Jean-Marie"), "Tremblay",
            email = "benjamin.tremblay@tsl.ac.uk", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-7441-2951"))
-Description: A collection of utilities for analyzing csRNA-seq data, or with
-    any type of TSS sequencing data.
+Description: A small collection of utilities for working with csRNA-seq data,
+    or really with any kind of TSS (transcription start site) sequencing data.
 Depends: R (>= 4.4.0)
 License: GPL (>= 3)
 Imports: AnnotationDbi, GenomicFeatures, GenomicRanges, GenomeInfoDb,

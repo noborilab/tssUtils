@@ -1,10 +1,10 @@
 # tssUtils
 
-A collection of utilities for analyzing csRNA-seq data, or any type of
-transcription start site (TSS) sequencing data. The package wraps the common
-operations needed to go from a set of called TSSs and per-sample quantifications
-to a fully annotated table, defined enhancer regions, TSS-enhancer correlation
-links, and per-sample TSS shape statistics.
+A small collection of utilities for working with csRNA-seq data (or really any
+kind of transcription start site, TSS, sequencing data). The idea is to wrap up
+the operations you tend to repeat when going from a set of called TSSs and their
+per-sample quantifications through to a fully annotated table, defined enhancer
+regions, TSS-enhancer correlation links, and per-sample TSS shape statistics.
 
 ## Installation
 
@@ -13,10 +13,10 @@ if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
 remotes::install_github("bjmt/tssUtils")
 ```
 
-`tssUtils` depends on the Bioconductor stack
+`tssUtils` leans on the Bioconductor stack
 (`GenomicRanges`, `IRanges`, `GenomeInfoDb`, `S4Vectors`, `rtracklayer`,
-`genomation`, `AnnotationDbi`, `GenomicFeatures`). If any are missing,
-install them first via `BiocManager::install()`.
+`genomation`, `AnnotationDbi`, `GenomicFeatures`), so if any of those happen to
+be missing you'll want to install them first with `BiocManager::install()`.
 
 ## Quick start
 
@@ -51,9 +51,9 @@ corrDf   <- correlateTSSEnhancers(quant[exprFilt, ], enhQuant,
   TSS[exprFilt], enhRes$enh, minPCC = 0.5)
 ```
 
-For the full pipeline, including per-sample TSS shape (Shannon entropy,
-Simpson diversity, percentile-based thick BED12 coordinates) and writing the
-output files, see the vignette:
+For the full pipeline, including per-sample TSS shape (Shannon entropy, Simpson
+diversity, and the percentile-based thick BED12 coordinates) and writing out the
+various output files, have a look at the vignette:
 
 ```r
 vignette("annotation", package = "tssUtils")

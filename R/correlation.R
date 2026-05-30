@@ -1,9 +1,9 @@
 #' Correlate TSS expression with enhancer expression.
 #'
-#' For each TSS-enhancer pair on the same chromosome, computes a Pearson
-#' correlation across samples on log2(1 + CPM)-transformed values. Pairs with
-#' `PCC < minPCC` are dropped, as are self-pairs (`Dist == 0`). Distances are
-#' computed via [GenomicRanges::distance()].
+#' For every TSS-enhancer pair sitting on the same chromosome, this computes a
+#' Pearson correlation across samples on log2(1 + CPM)-transformed values. Pairs
+#' that fall below `minPCC` are dropped, and so are self-pairs (the ones where
+#' `Dist == 0`). The distances themselves come from [GenomicRanges::distance()].
 #'
 #' @param quantTSS A numeric matrix or `data.frame` of TSS quantifications
 #'   (rows aligned with `TSS`).

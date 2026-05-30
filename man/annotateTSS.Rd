@@ -63,12 +63,14 @@ A \code{data.frame} with one row per \code{TSS} and columns: \code{TSS}, \code{C
 plus one \verb{Overlapping<name>} column per \code{peakAnnotations} entry.
 }
 \description{
-Classifies each TSS hierarchically by overlap and proximity to the supplied
-transcript and feature sets. The classification follows a fixed precedence
-(highest first): sense Tx promoter (5'UTR-aware), sense feature promoter,
-other sense Tx promoter, intragenic sense Tx, intragenic sense feature,
-antisense Tx, antisense feature, intergenic. After classification, divergent
-protein-coding / non-coding TSS pairs are flagged using \code{\link[=findDivergent]{findDivergent()}}.
+Each TSS is classified by looking at how it overlaps, and how close it sits
+to, the transcript and feature sets you supply. The rules are applied in a
+fixed order of precedence, from highest to lowest: sense Tx promoter (which
+is 5'UTR-aware), sense feature promoter, any other sense Tx promoter,
+intragenic sense Tx, intragenic sense feature, antisense Tx, antisense
+feature, and finally intergenic (the catch-all for anything that is left
+over). Once everything has been classified, divergent protein-coding /
+non-coding TSS pairs are flagged with \code{\link[=findDivergent]{findDivergent()}}.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

@@ -24,10 +24,11 @@ A \code{data.frame} with columns \code{Enhancer}, \code{Chr}, \code{Start}, \cod
 plus one \verb{Overlapping<name>} column per \code{peakAnnotations} entry.
 }
 \description{
-For each enhancer, sums the positive- and negative-strand TSS
-quantifications separately, computes a Pearson correlation between the
-two strand profiles across samples, the median strand ratio, the sample
-with peak total expression, and overlap with optional peak annotations.
+For each enhancer this sums the positive- and negative-strand TSS
+quantifications separately, and from those works out a Pearson correlation
+between the two strand profiles across samples, the median strand ratio, the
+sample where total expression peaks, and (if you pass any) the overlap with
+peak annotations.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

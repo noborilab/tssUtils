@@ -20,10 +20,10 @@ A \code{GRanges} mirroring \code{TSS} with integer \code{thickStart}/\code{thick
 mcols.
 }
 \description{
-Produces a \code{GRanges} whose ranges match the input \code{TSS}, with \code{thickStart}
-and \code{thickEnd} mcols giving either the position of the sample with the
-highest score (\code{method = "max"}) or the across-sample median peak
-position (\code{method = "median"}).
+Produces a \code{GRanges} whose ranges match the input \code{TSS}, where the
+\code{thickStart} and \code{thickEnd} mcols give either the peak position from the
+single sample with the highest score (\code{method = "max"}), or the median peak
+position taken across all the samples (\code{method = "median"}).
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

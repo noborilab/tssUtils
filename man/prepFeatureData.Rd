@@ -19,9 +19,10 @@ feature (e.g. \code{"transposable_element"}).}
 A list with the same shape as \code{\link[=prepTxData]{prepTxData()}}, with \code{featAnn = NULL}.
 }
 \description{
-Generic counterpart to \code{\link[=prepTxData]{prepTxData()}} for non-TxDb features such as
-transposable elements loaded from a BED file. Produces the same list shape
-so \code{\link[=annotateTSS]{annotateTSS()}} can treat all reference sets uniformly.
+The generic counterpart to \code{\link[=prepTxData]{prepTxData()}}, meant for features that do not
+come from a TxDb (transposable elements loaded from a BED file, say). It
+produces the same list shape, so that \code{\link[=annotateTSS]{annotateTSS()}} can treat every
+reference set in the same way without having to know where it came from.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

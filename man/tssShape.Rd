@@ -25,10 +25,10 @@ one matrix per percentile, named \code{pct1}, \code{pct2}, ... in the order of
 \code{percentiles}.
 }
 \description{
-For each TSS and each sample, computes the position of the maximum-score
-base, the maximum score itself, Shannon entropy, Simpson diversity, and
-positions at user-specified score percentiles. The percentile coordinates
-are computed via \code{\link[=calcPctiles]{calcPctiles()}}.
+For each TSS, and within each sample, this computes the position of the
+highest-scoring base, the maximum score itself, the Shannon entropy, the
+Simpson diversity, and the positions at whatever score percentiles you ask
+for. The percentile coordinates come from \code{\link[=calcPctiles]{calcPctiles()}}.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

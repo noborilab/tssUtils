@@ -18,8 +18,8 @@ coordinates (BED12 convention).}
 A \code{GRanges} with updated ranges and \code{thickStart}/\code{thickEnd} mcols.
 }
 \description{
-Convenience reshaper that sets the range coordinates and thick-start /
-thick-end mcols on a \code{GRanges} from numeric vectors.
+A small convenience reshaper that sets the range coordinates, along with the
+thick-start and thick-end mcols, on a \code{GRanges} from plain numeric vectors.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

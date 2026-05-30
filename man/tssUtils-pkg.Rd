@@ -7,8 +7,8 @@
 \alias{tssUtils-pkg}
 \title{tssUtils: Utilities for working with TSS sequencing data}
 \description{
-A collection of utilities for working with csRNA-seq, or with any TSS
-sequencing experimental data.
+A small collection of utilities for working with csRNA-seq data, or really
+with any kind of TSS sequencing data.
 }
 \author{
 \strong{Maintainer}: Benjamin Jean-Marie Tremblay \email{benjamin.tremblay@tsl.ac.uk} (\href{https://orcid.org/0000-0002-7441-2951}{ORCID})

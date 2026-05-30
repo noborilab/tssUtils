@@ -30,10 +30,10 @@ when \code{codingOnly = TRUE}.}
 A \code{data.frame} with columns \code{TSS}, \code{Enhancer}, \code{PCC}, \code{Dist}.
 }
 \description{
-For each TSS-enhancer pair on the same chromosome, computes a Pearson
-correlation across samples on log2(1 + CPM)-transformed values. Pairs with
-\code{PCC < minPCC} are dropped, as are self-pairs (\code{Dist == 0}). Distances are
-computed via \code{\link[GenomicRanges:nearest-methods]{GenomicRanges::distance()}}.
+For every TSS-enhancer pair sitting on the same chromosome, this computes a
+Pearson correlation across samples on log2(1 + CPM)-transformed values. Pairs
+that fall below \code{minPCC} are dropped, and so are self-pairs (the ones where
+\code{Dist == 0}). The distances themselves come from \code{\link[GenomicRanges:nearest-methods]{GenomicRanges::distance()}}.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

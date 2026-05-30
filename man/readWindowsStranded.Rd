@@ -43,8 +43,9 @@ If \code{windowAverage = TRUE}, a \code{data.frame} with columns \code{Position}
 (when \code{mergeSignalMatrix = TRUE}) or a list of two matrices.
 }
 \description{
-Computes per-window sense and antisense signal matrices given strand-aware
-input signal, and optionally averages across windows.
+Given strand-aware input signal, this computes the per-window sense and
+antisense signal matrices, and will optionally average them across windows
+for you.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

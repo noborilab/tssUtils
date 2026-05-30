@@ -1,15 +1,17 @@
 #' Define enhancer regions from annotated TSSs.
 #'
-#' Builds two sets of enhancer-like regions and returns them along with their
-#' merged union:
+#' Builds two kinds of enhancer-like region and hands them back together with
+#' their merged union:
 #'
-#' - **Bidirectional ncTSS regions**: pairs of antisense ncTSSs whose ends
-#'   are within `divergentDist` bp; the inter-pair span is taken as the region.
-#' - **Unidirectional intergenic ncTSS regions**: ncTSSs classified as
-#'   `Intergenic` (or as one of `intergenicTypes`) and not divergent, extended
-#'   `intergenicFlank` bp upstream of their 5' end.
+#' - **Bidirectional ncTSS regions**: pairs of antisense ncTSSs whose ends fall
+#'   within `divergentDist` bp of each other, with the span between the pair
+#'   taken as the region.
+#' - **Unidirectional intergenic ncTSS regions**: ncTSSs that were classified as
+#'   `Intergenic` (or as one of `intergenicTypes`) and are not divergent, each
+#'   extended `intergenicFlank` bp upstream of its 5' end.
 #'
-#' Regions overlapping any pcTSS are dropped.
+#' Any region that ends up overlapping a pcTSS is dropped, since it is more
+#' likely to belong to a known promoter than to an enhancer.
 #'
 #' @param TSS A `GRanges` of called TSSs (with `mcols$name` matching `anno$TSS`).
 #' @param anno Annotation `data.frame` produced by [annotateTSS()].
@@ -134,10 +136,11 @@ quantifyEnhancers <- function(enh, TSS, quant, ignoreStrand = TRUE) {
 
 #' Compute strand-resolved enhancer statistics.
 #'
-#' For each enhancer, sums the positive- and negative-strand TSS
-#' quantifications separately, computes a Pearson correlation between the
-#' two strand profiles across samples, the median strand ratio, the sample
-#' with peak total expression, and overlap with optional peak annotations.
+#' For each enhancer this sums the positive- and negative-strand TSS
+#' quantifications separately, and from those works out a Pearson correlation
+#' between the two strand profiles across samples, the median strand ratio, the
+#' sample where total expression peaks, and (if you pass any) the overlap with
+#' peak annotations.
 #'
 #' @param enh A `GRanges` of enhancer regions.
 #' @param TSS A `GRanges` of TSSs aligned to the rows of `quant`.
@@ -233,10 +236,10 @@ enhancerStrandStats <- function(enh, TSS, quant, exprFilt,
 
 #' Narrow each bidirectional enhancer to its inner-peak coordinates.
 #'
-#' For each region in `bdGR`, find the highest-expression `+` strand and
-#' `-` strand TSS that overlaps it (using `tssMaxPos` to choose the peak
-#' position) and produce a `GRanges` whose start is the negative-strand peak
-#' and whose end is the positive-strand peak.
+#' For each region in `bdGR`, this finds the highest-expression `+` strand and
+#' `-` strand TSS overlapping it (using `tssMaxPos` to pick the peak position
+#' within each), and then returns a `GRanges` running from the negative-strand
+#' peak at its start to the positive-strand peak at its end.
 #'
 #' @param bdGR A `GRanges` of bidirectional enhancer regions.
 #' @param TSS A `GRanges` of TSSs aligned to `quant` and `tssMaxPos`.

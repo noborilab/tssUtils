@@ -1,8 +1,9 @@
 #' Prepare reference data from a TxDb for TSS annotation.
 #'
-#' Extracts transcripts and their TSS positions from a TxDb (and the
-#' reverse-complement variants), plus a transcript-to-type lookup. The
-#' returned list is consumed by [annotateTSS()].
+#' Pulls the transcripts and their TSS positions out of a TxDb (along with the
+#' reverse-complement variants, which the antisense rules need), and builds a
+#' transcript-to-type lookup to go with them. The returned list is what
+#' [annotateTSS()] expects to be handed.
 #'
 #' @param TxDb A `TxDb` object (e.g. loaded with [AnnotationDbi::loadDb()]).
 #' @param seqnames Optional character vector of seqlevels to restrict the
@@ -53,9 +54,10 @@ prepTxData <- function(TxDb, seqnames = NULL, geneNameCol = "tx_name",
 
 #' Prepare reference data from a `GRanges` of features for TSS annotation.
 #'
-#' Generic counterpart to [prepTxData()] for non-TxDb features such as
-#' transposable elements loaded from a BED file. Produces the same list shape
-#' so [annotateTSS()] can treat all reference sets uniformly.
+#' The generic counterpart to [prepTxData()], meant for features that do not
+#' come from a TxDb (transposable elements loaded from a BED file, say). It
+#' produces the same list shape, so that [annotateTSS()] can treat every
+#' reference set in the same way without having to know where it came from.
 #'
 #' @param features A `GRanges` of features.
 #' @param nameCol Name of the metadata column on `features` that holds the
@@ -250,7 +252,7 @@ filterByExpression <- function(quant, minCpm = 0.5, minSamples = 3) {
   list(remaining = TSS[!ok], Anno = Anno)
 }
 
-# Rule: any other Tx promoter — close enough or overlapping the nearest TSS.
+# Rule: any other Tx promoter (close enough to, or overlapping, the nearest TSS).
 .classifyOtherTxPromoter <- function(TSS, Anno, txData, params) {
   TxTSS <- txData$featTSS
   TxAnn <- txData$featAnn
@@ -281,7 +283,7 @@ filterByExpression <- function(quant, minCpm = 0.5, minSamples = 3) {
   list(remaining = TSS[!ok], Anno = Anno)
 }
 
-# Rule: intragenic, sense — TSS overlaps a feature body.
+# Rule: intragenic, sense (the TSS overlaps a feature body).
 .classifyIntragenic <- function(TSS, Anno, featData, params) {
   Feat <- featData$feat
   FeatTSS <- featData$featTSS
@@ -402,12 +404,14 @@ filterByExpression <- function(quant, minCpm = 0.5, minSamples = 3) {
 
 #' Annotate TSSs against transcript and feature reference data.
 #'
-#' Classifies each TSS hierarchically by overlap and proximity to the supplied
-#' transcript and feature sets. The classification follows a fixed precedence
-#' (highest first): sense Tx promoter (5'UTR-aware), sense feature promoter,
-#' other sense Tx promoter, intragenic sense Tx, intragenic sense feature,
-#' antisense Tx, antisense feature, intergenic. After classification, divergent
-#' protein-coding / non-coding TSS pairs are flagged using [findDivergent()].
+#' Each TSS is classified by looking at how it overlaps, and how close it sits
+#' to, the transcript and feature sets you supply. The rules are applied in a
+#' fixed order of precedence, from highest to lowest: sense Tx promoter (which
+#' is 5'UTR-aware), sense feature promoter, any other sense Tx promoter,
+#' intragenic sense Tx, intragenic sense feature, antisense Tx, antisense
+#' feature, and finally intergenic (the catch-all for anything that is left
+#' over). Once everything has been classified, divergent protein-coding /
+#' non-coding TSS pairs are flagged with [findDivergent()].
 #'
 #' @param TSS A `GRanges` of called TSSs. Must have `mcols(TSS)$name` set; it
 #'   will be set to `paste0("TSS_", seq_along(TSS))` if missing.

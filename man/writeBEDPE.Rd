@@ -20,9 +20,9 @@ writeBEDPE(x, y, f, names = NULL)
 A \code{data.frame} representation of the BEDPE file, invisibly.
 }
 \description{
-Each pair \verb{(x[i], y[i])} is written as a single BEDPE row. The leftmost
-interval of the pair is written as \code{chrom1/start1/end1} and the rightmost
-as \code{chrom2/start2/end2}.
+Each pair \verb{(x[i], y[i])} becomes a single BEDPE row. Whichever of the two
+intervals sits furthest to the left is written as \code{chrom1/start1/end1}, and
+the other as \code{chrom2/start2/end2}.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

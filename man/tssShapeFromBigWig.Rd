@@ -24,8 +24,9 @@ negative-strand bigWigs.}
 The list of matrices returned by \code{\link[=tssShape]{tssShape()}}.
 }
 \description{
-Loads paired stranded bigWig files for a set of samples and runs
-\code{\link[=tssShape]{tssShape()}} on the resulting signal list.
+Loads the paired stranded bigWig files for a set of samples and then runs
+\code{\link[=tssShape]{tssShape()}} over the resulting signal list, so you do not have to assemble
+that list yourself.
 }
 \author{
 Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}

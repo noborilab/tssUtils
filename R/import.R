@@ -107,8 +107,9 @@ readWindowsUnstranded <- function(signal, windows, scoreCol = "score",
 
 #' Read stranded signal in windows from a `GRanges` object or paired bedGraph/bigWig files
 #'
-#' Computes per-window sense and antisense signal matrices given strand-aware
-#' input signal, and optionally averages across windows.
+#' Given strand-aware input signal, this computes the per-window sense and
+#' antisense signal matrices, and will optionally average them across windows
+#' for you.
 #'
 #' @param signal Either a stranded `GRanges` object, or a length-2 character
 #'   vector of filenames (positive strand first, then negative strand).
