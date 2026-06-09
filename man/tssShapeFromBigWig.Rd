@@ -18,7 +18,8 @@ tssShapeFromBigWig(TSS, bwDir, samples, posSuffix = ".rpm.pos.bw",
 \item{posSuffix, negSuffix}{File-name suffixes for positive- and
 negative-strand bigWigs.}
 
-\item{...}{Further arguments passed to \code{\link[=tssShape]{tssShape()}}.}
+\item{...}{Further arguments passed to \code{\link[=tssShape]{tssShape()}}, such as
+\code{antisense = TRUE} to also obtain the opposite-strand statistics.}
 }
 \value{
 The list of matrices returned by \code{\link[=tssShape]{tssShape()}}.

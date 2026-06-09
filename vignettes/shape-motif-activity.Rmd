@@ -1,0 +1,363 @@
+---
+title: "Inferring TF-activity changes from TSS shape and motifs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Inferring TF-activity changes from TSS shape and motifs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+# The functions in this vignette lean on a few packages that tssUtils only
+# Suggests, so we only evaluate the code when they are all available (which
+# means, on a machine without them, you will still see the code but not the
+# output).
+havePkgs <- all(vapply(c("Biostrings", "Rsamtools", "universalmotif", "glmnet"),
+  requireNamespace, logical(1), quietly = TRUE))
+knitr::opts_chunk$set(eval = havePkgs)
+```
+
+The shape of a TSS distribution, that is, whether initiation is tightly focused
+on one dominant base or spread across a broad region, is set in large part by
+which transcription factors (TFs) are acting at the promoter. So a change in
+shape between two conditions is a phenotype, and the motifs sitting in the
+promoter window give us a set of candidate TF identities to explain it. This
+vignette walks through that idea end to end on a small synthetic dataset, using
+five functions: `tssShapeMatched()`, `deltaShapeVector()`,
+`scanPromoterMotifs()`, `shapeMotifActivity()`, and `motifAnchoredDelta()`.
+
+A word of caution before we start. What follows is a population-level
+*associational* inference, not a measurement of occupancy. A motif being present
+is not the same as a TF being bound, and shape-based reasoning only sees the
+positioning or architectural factors (the ones that move where polymerase
+starts), so recruitment-only factors will mostly be invisible here. A nomination
+from this analysis is a hypothesis to confirm with an orthogonal signal (an ATAC
+footprint, a ChIP, or a motif/TF perturbation), not a conclusion on its own.
+
+```{r}
+suppressPackageStartupMessages({
+  library(tssUtils)
+  library(GenomicRanges)
+  library(IRanges)
+  library(Biostrings)
+  library(Rsamtools)
+  library(universalmotif)
+})
+```
+
+## A small synthetic dataset
+
+In a real run you would bring your own genome (a `BSgenome`, an
+`Rsamtools::FaFile`, or an indexed FASTA), a `GRanges` of TSS regions from your
+peak caller, and per-sample raw-count 5' tracks read with `readSignal()`. Here,
+to keep everything self-contained and fast, we make all of it up.
+
+We build a tiny genome with a promoter every 1000 bp, and plant a TATA box about
+28 bp upstream of the first twenty promoters (the other twenty are left as
+random sequence, to act as negatives).
+
+```{r}
+set.seed(2024)
+N <- 40
+seqlen <- N * 1000 + 1000
+genomeSeq <- paste(sample(c("A", "C", "G", "T"), seqlen, replace = TRUE),
+  collapse = "")
+tssPos <- (1:N) * 1000
+
+tataProms <- 1:20
+for (i in tataProms) substr(genomeSeq, tssPos[i] - 30, tssPos[i] - 25) <- "TATAAA"
+
+fa <- tempfile(fileext = ".fa")
+writeXStringSet(DNAStringSet(c("1" = genomeSeq)), fa)
+indexFa(fa)
+```
+
+The TSS regions are short windows around each promoter. (Note that they carry an
+`mcols$name`, which every range-based function in the package uses as a key.)
+
+```{r}
+si <- Seqinfo("1", seqlen)
+TSS <- GRanges("1", IRanges(tssPos - 20, tssPos + 40), strand = "+",
+  name = paste0("prom", seq_len(N)))
+seqinfo(TSS) <- si
+names(TSS) <- TSS$name
+```
+
+Finally the signal. We have two conditions, each with two replicates, carrying
+raw integer 5' counts. The control is the same broad pattern everywhere; in the
+treatment, the TATA promoters sharpen into a focused peak, while everything else
+is left untouched.
+
+```{r}
+mkCounts <- function(sharpen) {
+  parts <- lapply(seq_len(N), function(i) {
+    p <- (tssPos[i] - 20):(tssPos[i] + 40)
+    spread <- if (i %in% tataProms && sharpen) 4 else 12
+    sc <- as.integer(round(40 * exp(-((p - tssPos[i])^2) / (2 * spread^2))) + 1L)
+    g <- GRanges("1", IRanges(p, p), strand = "+")
+    g$score <- sc
+    g
+  })
+  out <- sort(do.call(c, parts))
+  seqinfo(out) <- si
+  out
+}
+condA <- list(ctrl_rep1 = mkCounts(FALSE), ctrl_rep2 = mkCounts(FALSE))
+condB <- list(treat_rep1 = mkCounts(TRUE), treat_rep2 = mkCounts(TRUE))
+```
+
+Before going any further it is worth simply looking at the data, since the whole
+analysis is really just a way of quantifying what the eye already picks out. The
+little helper below pulls the mean per-position sense signal for one promoter
+out of a condition, and we plot a TATA promoter next to a non-TATA one.
+
+```{r}
+profileOf <- function(signalList, i) {
+  p <- (tssPos[i] - 20):(tssPos[i] + 40)
+  perSample <- vapply(signalList, function(g) {
+    g <- g[strand(g) == "+"]
+    v <- numeric(length(p))
+    hit <- match(start(g), p)
+    ok <- !is.na(hit)
+    v[hit[ok]] <- g$score[ok]
+    v
+  }, numeric(length(p)))
+  rowMeans(perSample)
+}
+```
+
+```{r, fig.width = 7, fig.height = 3.4}
+rel <- -20:40
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+for (i in c(1, 21)) {
+  a <- profileOf(condA, i)
+  b <- profileOf(condB, i)
+  plot(rel, a, type = "l", lwd = 2, ylim = c(0, max(a, b)),
+    xlab = "Position relative to TSS (bp)", ylab = "Mean 5' counts",
+    main = if (i %in% tataProms) "TATA promoter" else "non-TATA promoter")
+  lines(rel, b, lwd = 2, col = "firebrick")
+  abline(v = 0, col = "grey80")
+  legend("topright", bty = "n", lwd = 2, col = c("black", "firebrick"),
+    legend = c("control", "treatment"))
+}
+par(op)
+```
+
+(Note that the treatment narrows the TATA promoter into a sharp spike while
+leaving the non-TATA promoter essentially alone. That contrast, focusing versus
+no change, is the phenotype we are about to put numbers on.)
+
+## Depth-matched shape
+
+The first step is the one it is tempting to skip, and the one that matters most.
+Shannon entropy and interquantile width are both biased downward at low tag
+counts, so if two conditions differ in coverage, you can manufacture a shape
+change out of nothing but sequencing depth. `tssShapeMatched()` guards against
+this by downsampling every sample, per promoter, to a common target (by default
+the minimum total across samples), recomputing the shape on the subsampled
+counts, and averaging over a few draws to settle the sampling noise. It is a
+drop-in replacement for `tssShape()`, and it must run on raw counts rather than
+RPM-normalized tracks, since you cannot meaningfully subsample a normalized
+signal.
+
+We pass `antisense = TRUE` so that the opposite-strand totals come along too,
+which we would need if we later wanted to look at directionality. (Note that the
+downsampling is random, so we call `set.seed()` first to keep the vignette
+reproducible; the same applies to the regression and the meta-profile below.)
+
+```{r}
+set.seed(1)
+shapeA <- tssShapeMatched(TSS, condA, draws = 5, minCount = 20, antisense = TRUE)
+shapeB <- tssShapeMatched(TSS, condB, draws = 5, minCount = 20, antisense = TRUE)
+```
+
+## A delta-shape response
+
+`deltaShapeVector()` reduces the two shape objects to a single number per
+promoter: the chosen statistic, aggregated across the replicates within each
+condition, differenced as B minus A. Here we use the change in Shannon entropy,
+where a negative value means initiation became more focused in the treatment.
+
+```{r}
+dEntropy <- deltaShapeVector(shapeA, shapeB, metric = "entropy")
+
+c(TATA    = mean(dEntropy[paste0("prom", tataProms)]),
+  nonTATA = mean(dEntropy[paste0("prom", setdiff(1:N, tataProms))]))
+```
+
+(Note that the TATA promoters carry a clearly negative delta-entropy while the
+others sit at zero, which is exactly the signal we planted.) Splitting the
+per-promoter values by group makes the separation easy to see:
+
+```{r, fig.width = 5, fig.height = 4}
+grp <- ifelse(as.integer(sub("prom", "", names(dEntropy))) %in% tataProms,
+  "TATA", "non-TATA")
+op <- par(mar = c(4, 4, 2, 1))
+stripchart(dEntropy ~ grp, method = "jitter", vertical = TRUE, pch = 19,
+  col = c("grey50", "firebrick"), ylab = "delta-entropy (treatment - control)",
+  main = "Shape change by promoter group")
+abline(h = 0, col = "grey80")
+par(op)
+```
+
+Other metrics are a single argument away: `"width"` (which needs you to name the
+two percentile indices bounding the window, via `pctLo` and `pctHi`),
+`"modeShift"`, and `"directionality"` (which needs the `antisense = TRUE` shapes
+we built above).
+
+## Scanning the promoter window for motifs
+
+Now we need the candidate identities. `scanPromoterMotifs()` takes a window
+around each promoter, defined relative to the dominant TSS, fetches its genomic
+sequence, and scans it against a motif library with
+`universalmotif::scan_sequences()`. We anchor the window on the dominant
+position from `aggregateTSSShape()`, which keeps the scan independent of any one
+signal track. For the library we use the real TATA box and a GC-rich decoy, so
+we can see whether the analysis tells them apart.
+
+```{r}
+motifs <- list(
+  create_motif("TATAAA", name = "TATA"),
+  create_motif("GGGCGG", name = "GC")
+)
+dominant <- aggregateTSSShape(shapeA, TSS[rownames(shapeA$shannon)])$thickStart
+scan <- scanPromoterMotifs(TSS[rownames(shapeA$shannon)], fa, motifs,
+  window = c(-50L, 10L), dominantPos = dominant,
+  threshold = 1e-3, thresholdType = "pvalue")
+
+colSums(scan$matrices$presence)
+```
+
+The result holds two things: a per-promoter `matrices` list (presence, count,
+and best-score) for the regression below, and an `occurrences` `GRanges` (with
+each hit's genomic position, strand, offset, and sense/antisense label) for the
+meta-profile after that. (Note that a few TATA hits turn up by chance in the
+random sequence; that is expected, and is part of what the regularized
+regression is built to cope with.)
+
+The `offset` column records where each hit sits relative to the dominant TSS, so
+a histogram of it shows the planted TATA box stacking up around its expected
+position while the spurious hits scatter:
+
+```{r, fig.width = 5, fig.height = 4}
+tataOff <- scan$occurrences$offset[scan$occurrences$motif == "TATA"]
+op <- par(mar = c(4, 4, 2, 1))
+hist(tataOff, breaks = seq(-50, 10, by = 4), col = "grey80", border = "white",
+  xlab = "Motif offset from dominant TSS (bp)", main = "TATA occurrences")
+abline(v = -28, col = "firebrick", lwd = 2)
+par(op)
+```
+
+## Which motif explains the shape change?
+
+`shapeMotifActivity()` regresses the delta-shape response on the motif matrix
+with a regularized (elastic-net) model, so that collinear motifs are
+deconvolved rather than each grabbing a share of the credit. The signed
+coefficient per motif is its estimated shape-activity change, and significance
+comes from a permutation test, since glmnet does not hand out usable p-values.
+
+```{r}
+set.seed(3)
+activity <- shapeMotifActivity(dEntropy, scan$matrices$presence,
+  alpha = 0.5, significance = "permutation", nperm = 300)
+activity
+```
+
+TATA is nominated with a clearly negative coefficient and a small permutation
+p-value, while the GC decoy is shrunk to exactly zero. Simply put, the presence
+of a TATA box is what tracks with the sharpening we measured, which is the
+inference we were after. A signed bar chart of the coefficients makes the
+nomination obvious at a glance:
+
+```{r, fig.width = 5, fig.height = 4}
+ord <- order(activity$coef)
+op <- par(mar = c(4, 5, 2, 1))
+cols <- ifelse(activity$pPerm[ord] < 0.05, "firebrick", "grey70")
+barplot(activity$coef[ord], names.arg = activity$motif[ord], horiz = TRUE,
+  las = 1, col = cols, xlab = "shape-activity coefficient",
+  main = "delta-entropy ~ motif presence")
+abline(v = 0, col = "grey40")
+legend("bottomleft", bty = "n", fill = c("firebrick", "grey70"),
+  legend = c("p < 0.05", "n.s."))
+par(op)
+```
+
+## A position-resolved look at the top motif
+
+A coefficient tells you a motif is associated with the change, but not where
+around the motif the change happens. `motifAnchoredDelta()` answers that by
+building a fixed window centred and strand-oriented on every occurrence of one
+motif, extracting the per-position 5' signal in each condition, and returning
+condition B minus condition A aggregated across occurrences. A localized feature
+at a stereotyped offset, standing out against a shuffled-window control, is the
+signature of a direct local effect.
+
+```{r}
+topMotif <- activity$motif[1]
+occ <- scan$occurrences[scan$occurrences$motif == topMotif]
+set.seed(5)
+profile <- motifAnchoredDelta(condA, condB, occ, window = c(60, 60),
+  ci = "bootstrap", nboot = 200, control = "shuffle")
+
+head(profile)
+```
+
+The return value is a tidy data frame, one row per position, with the aggregated
+delta (`deltaMean`) and its confidence band (`deltaLo`, `deltaHi`), the raw
+per-condition signal (`signalA`, `signalB`), the antisense delta, and the
+control band. It is meant to be plotted directly. On the left we show the two
+conditions on their own, and on the right the delta against its confidence band
+and the shuffled-window control:
+
+```{r, fig.width = 7.5, fig.height = 3.6, eval = havePkgs}
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+with(profile, {
+  matplot(distance, cbind(signalA, signalB), type = "l", lty = 1, lwd = 2,
+    col = c("grey40", "firebrick"),
+    xlab = "Distance from motif (bp)", ylab = "Mean 5' signal",
+    main = "Per-condition profiles")
+  abline(v = 0, col = "grey80")
+  legend("topright", bty = "n", lty = 1, lwd = 2,
+    col = c("grey40", "firebrick"), legend = c("control (A)", "treatment (B)"))
+
+  plot(distance, deltaMean, type = "l", lwd = 2, ylim = range(deltaLo, deltaHi),
+    xlab = "Distance from motif (bp, motif-5' oriented)",
+    ylab = "delta 5' signal (B - A)", main = "Delta and control")
+  polygon(c(distance, rev(distance)), c(deltaLo, rev(deltaHi)),
+    col = adjustcolor("steelblue", 0.25), border = NA)
+  lines(distance, deltaMean, lwd = 2)
+  lines(distance, control, col = "firebrick")
+  abline(h = 0, v = 0, col = "grey80")
+  legend("bottomleft", bty = "n", lty = 1, lwd = c(2, 1),
+    col = c("black", "firebrick"), legend = c("delta (B - A)", "shuffle control"))
+})
+par(op)
+```
+
+(Note how the delta sits flat on top of the control everywhere except for the
+localized dip a fixed distance from the motif, which is the spatial fingerprint
+of the effect.)
+
+If you would rather compare against motif-free promoters than against shifted
+windows, `control = "background"` takes a `backgroundGR` of anchor sites and
+runs the identical pipeline over them instead.
+
+## In closing
+
+Putting the pieces together, the workflow is: depth-match the shape so a
+coverage difference cannot pose as a phenotype, reduce it to a delta-shape
+response, scan for the motifs that might explain it, regress to nominate one,
+and finally resolve where around that motif the signal actually moved. The
+synthetic example recovers the planted biology cleanly, but on real data it is
+worth remembering that this only ever nominates a candidate. Motif presence is
+not occupancy, the shape lens is blind to recruitment-only factors, and so the
+honest next step for any hit is an orthogonal confirmation rather than a
+conclusion.
+
+For the upstream steps (calling, classifying, and quantifying TSSs, and the
+per-sample `tssShape()` that `tssShapeMatched()` builds on), see the
+*Annotating csRNA-seq TSSs with tssUtils* vignette.
+```{r, include = FALSE}
+unlink(c(fa, paste0(fa, ".fai")))
+```

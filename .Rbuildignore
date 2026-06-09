@@ -1,5 +1,8 @@
 ^LICENSE\.md$
 ^CLAUDE\.md$
+^\.claude$
+^README\.md$
+^design-shape-motif-tf-activity\.md$
 ^annotate_tss\.R$
 ^run_annotation\.R$
 ^\.DS_Store$

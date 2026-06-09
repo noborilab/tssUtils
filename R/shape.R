@@ -54,17 +54,28 @@ simpsonDiversity <- function(scores, minScore = 0) {
 #'   report. The default mirrors the analysis pipeline.
 #' @param minScore Threshold passed to `shannonEntropy()` and
 #'   `simpsonDiversity()`.
+#' @param antisense If `TRUE`, also compute opposite-strand statistics for each
+#'   TSS, by overlapping the signal against the flipped TSS strand. This adds
+#'   the matrices `sumScore` (sense total score in the window), `sumScoreAnti`
+#'   (antisense total), `maxScoreAnti`, `shannonAnti`, and `simpsonAnti` to the
+#'   output. The load-bearing pair for directionality is `sumScore` /
+#'   `sumScoreAnti`; where a TSS has signal on one strand only, the other
+#'   strand's total is set to `0` (a genuine zero) rather than `NA`, so the
+#'   ratio stays defined. Defaults to `FALSE`, in which case the output is
+#'   exactly as before.
 #'
 #' @return A list of matrices, all of dimensions `length(TSS) ×
 #'   length(signalList)`: `maxPos`, `maxScore`, `shannon`, `simpson`, plus
 #'   one matrix per percentile, named `pct1`, `pct2`, ... in the order of
-#'   `percentiles`.
+#'   `percentiles`. When `antisense = TRUE`, the list additionally contains
+#'   `sumScore`, `sumScoreAnti`, `maxScoreAnti`, `shannonAnti`, and
+#'   `simpsonAnti`.
 #'
 #' @author Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}
 #' @export
 tssShape <- function(TSS, signalList,
   percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8, 0.9, 1),
-  minScore = 0.5) {
+  minScore = 0.5, antisense = FALSE) {
 
   if (is.null(mcols(TSS)$name))
     stop("TSS must have an mcol named 'name'")
@@ -86,35 +97,77 @@ tssShape <- function(TSS, signalList,
   pctNames <- paste0("pct", seq_along(percentiles))
   for (nm in pctNames) out[[nm]] <- mkMat()
 
+  if (isTRUE(antisense)) {
+    out$sumScore <- mkMat()
+    out$sumScoreAnti <- mkMat()
+    out$maxScoreAnti <- mkMat()
+    out$shannonAnti <- mkMat()
+    out$simpsonAnti <- mkMat()
+    # Flip the TSS strand in place, without reordering, so antisense overlaps
+    # stay row-aligned with the sense matrices. swapStrand() sorts, so we do
+    # not use it here.
+    TSSanti <- TSS
+    flip <- structure(c("-", "+", "*"), names = c("+", "-", "*"))
+    strand(TSSanti) <- flip[as.character(strand(TSS))]
+  }
+
   tssStarts <- start(TSS)
   tssEnds <- end(TSS)
 
   for (i in seq_len(nS)) {
     bw <- signalList[[i]]
-    ovs <- findOverlaps(TSS, bw)
-    if (!length(ovs)) next
     bwPos <- start(bw)
     bwScore <- bw$score
-    qH <- queryHits(ovs)
-    sH <- subjectHits(ovs)
-    uH <- sort(unique(qH))
+    ovs <- findOverlaps(TSS, bw)
+    if (length(ovs)) {
+      qH <- queryHits(ovs)
+      sH <- subjectHits(ovs)
+      uH <- sort(unique(qH))
 
-    out$maxPos[uH, i] <- tapply(sH, qH,
-      function(x) bwPos[x][which.max(bwScore[x])])
-    out$maxScore[uH, i] <- tapply(sH, qH,
-      function(x) bwScore[x][which.max(bwScore[x])])
-    out$shannon[uH, i] <- tapply(sH, qH,
-      function(x) shannonEntropy(bwScore[x], minScore))
-    out$simpson[uH, i] <- tapply(sH, qH,
-      function(x) simpsonDiversity(bwScore[x], minScore))
+      out$maxPos[uH, i] <- tapply(sH, qH,
+        function(x) bwPos[x][which.max(bwScore[x])])
+      out$maxScore[uH, i] <- tapply(sH, qH,
+        function(x) bwScore[x][which.max(bwScore[x])])
+      out$shannon[uH, i] <- tapply(sH, qH,
+        function(x) shannonEntropy(bwScore[x], minScore))
+      out$simpson[uH, i] <- tapply(sH, qH,
+        function(x) simpsonDiversity(bwScore[x], minScore))
+      if (isTRUE(antisense))
+        out$sumScore[uH, i] <- tapply(sH, qH, function(x) sum(bwScore[x]))
 
-    pctMat <- mapply(function(qi, sx)
-        calcPctiles(tssStarts[qi], tssEnds[qi], bwPos[sx], bwScore[sx], percentiles),
-      as.list(uH), unname(tapply(sH, qH, list)))
-    if (is.null(dim(pctMat))) pctMat <- matrix(pctMat, nrow = length(percentiles))
-    for (j in seq_along(percentiles)) {
-      out[[pctNames[j]]][uH, i] <- pctMat[j, ]
+      pctMat <- mapply(function(qi, sx)
+          calcPctiles(tssStarts[qi], tssEnds[qi], bwPos[sx], bwScore[sx], percentiles),
+        as.list(uH), unname(tapply(sH, qH, list)))
+      if (is.null(dim(pctMat))) pctMat <- matrix(pctMat, nrow = length(percentiles))
+      for (j in seq_along(percentiles)) {
+        out[[pctNames[j]]][uH, i] <- pctMat[j, ]
+      }
     }
+
+    if (isTRUE(antisense)) {
+      ovsA <- findOverlaps(TSSanti, bw)
+      if (length(ovsA)) {
+        qHa <- queryHits(ovsA)
+        sHa <- subjectHits(ovsA)
+        uHa <- sort(unique(qHa))
+        out$sumScoreAnti[uHa, i] <- tapply(sHa, qHa, function(x) sum(bwScore[x]))
+        out$maxScoreAnti[uHa, i] <- tapply(sHa, qHa,
+          function(x) bwScore[x][which.max(bwScore[x])])
+        out$shannonAnti[uHa, i] <- tapply(sHa, qHa,
+          function(x) shannonEntropy(bwScore[x], minScore))
+        out$simpsonAnti[uHa, i] <- tapply(sHa, qHa,
+          function(x) simpsonDiversity(bwScore[x], minScore))
+      }
+    }
+  }
+
+  if (isTRUE(antisense)) {
+    # Where a promoter/sample has signal on one strand only, the missing
+    # strand's total is a genuine zero (not missing), so directionality stays
+    # defined. Cells with no signal at all are left NA.
+    anySig <- !is.na(out$sumScore) | !is.na(out$sumScoreAnti)
+    out$sumScore[anySig & is.na(out$sumScore)] <- 0
+    out$sumScoreAnti[anySig & is.na(out$sumScoreAnti)] <- 0
   }
 
   out
@@ -132,7 +185,8 @@ tssShape <- function(TSS, signalList,
 #'   `<bwDir>/<s><posSuffix>` and `<bwDir>/<s><negSuffix>` are read.
 #' @param posSuffix,negSuffix File-name suffixes for positive- and
 #'   negative-strand bigWigs.
-#' @param ... Further arguments passed to [tssShape()].
+#' @param ... Further arguments passed to [tssShape()], such as
+#'   `antisense = TRUE` to also obtain the opposite-strand statistics.
 #'
 #' @return The list of matrices returned by [tssShape()].
 #'

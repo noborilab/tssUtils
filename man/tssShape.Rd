@@ -5,7 +5,7 @@
 \title{Per-TSS shape statistics across one or more samples.}
 \usage{
 tssShape(TSS, signalList, percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8, 0.9, 1),
-  minScore = 0.5)
+  minScore = 0.5, antisense = FALSE)
 }
 \arguments{
 \item{TSS}{A \code{GRanges} of TSSs (with \code{mcols$name}).}
@@ -18,11 +18,23 @@ report. The default mirrors the analysis pipeline.}
 
 \item{minScore}{Threshold passed to \code{shannonEntropy()} and
 \code{simpsonDiversity()}.}
+
+\item{antisense}{If \code{TRUE}, also compute opposite-strand statistics for each
+TSS, by overlapping the signal against the flipped TSS strand. This adds
+the matrices \code{sumScore} (sense total score in the window), \code{sumScoreAnti}
+(antisense total), \code{maxScoreAnti}, \code{shannonAnti}, and \code{simpsonAnti} to the
+output. The load-bearing pair for directionality is \code{sumScore} /
+\code{sumScoreAnti}; where a TSS has signal on one strand only, the other
+strand's total is set to \code{0} (a genuine zero) rather than \code{NA}, so the
+ratio stays defined. Defaults to \code{FALSE}, in which case the output is
+exactly as before.}
 }
 \value{
 A list of matrices, all of dimensions \verb{length(TSS) × length(signalList)}: \code{maxPos}, \code{maxScore}, \code{shannon}, \code{simpson}, plus
 one matrix per percentile, named \code{pct1}, \code{pct2}, ... in the order of
-\code{percentiles}.
+\code{percentiles}. When \code{antisense = TRUE}, the list additionally contains
+\code{sumScore}, \code{sumScoreAnti}, \code{maxScoreAnti}, \code{shannonAnti}, and
+\code{simpsonAnti}.
 }
 \description{
 For each TSS, and within each sample, this computes the position of the

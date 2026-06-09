@@ -12,7 +12,8 @@ License: GPL (>= 3)
 Imports: AnnotationDbi, GenomicFeatures, GenomicRanges, GenomeInfoDb,
     genomation, IRanges, matrixStats, methods, rtracklayer, S4Vectors,
     stats, utils
-Suggests: knitr, rmarkdown, testthat (>= 3.0.0), txdbmaker
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0), txdbmaker, Biostrings,
+    universalmotif, glmnet, Rsamtools
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
