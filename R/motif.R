@@ -85,6 +85,9 @@
 #' @param ignoreStrand If `FALSE` (default), both genomic strands are scanned
 #'   and each hit is labelled sense or antisense relative to its TSS. If `TRUE`,
 #'   only the oriented sense sequence is scanned.
+#' @param nthreads Number of threads for [universalmotif::scan_sequences()]
+#'   (the dominant cost). Defaults to `1`; set higher (e.g.
+#'   `parallel::detectCores() - 2`) to scan a large motif library faster.
 #'
 #' @return A list of class `"promoterMotifScan"` with two elements:
 #'   `occurrences`, a `GRanges` with one row per hit (genomic coordinates and
@@ -102,7 +105,7 @@
 #' @export
 scanPromoterMotifs <- function(TSS, genome, pwms,
   window = c(-50L, 10L), threshold = 1e-4, thresholdType = "pvalue",
-  dominantPos = NULL, ignoreStrand = FALSE) {
+  dominantPos = NULL, ignoreStrand = FALSE, nthreads = 1L) {
 
   if (!requireNamespace("Biostrings", quietly = TRUE))
     stop("Package 'Biostrings' is required for scanPromoterMotifs(); install it.",
@@ -219,7 +222,7 @@ scanPromoterMotifs <- function(TSS, genome, pwms,
 
   hits <- universalmotif::scan_sequences(scanMotifs, seqs,
     threshold = threshold, threshold.type = thresholdType,
-    RC = !isTRUE(ignoreStrand), return.granges = TRUE)
+    RC = !isTRUE(ignoreStrand), return.granges = TRUE, nthreads = nthreads)
 
   if (!length(hits)) {
     out <- list(occurrences = emptyOcc(),

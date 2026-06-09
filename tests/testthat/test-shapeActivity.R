@@ -81,6 +81,31 @@ test_that("tssShapeMatched is reproducible via set.seed()", {
   expect_equal(m1$shannon, m2$shannon)
 })
 
+test_that("tssShapeMatched minFrac rescues promoters with a few shallow samples", {
+  TSS <- GRanges("1", IRanges(c(100, 400), c(200, 500)), strand = "+",
+    name = c("A", "B"))
+  GenomeInfoDb::seqinfo(TSS) <- GenomeInfoDb::Seqinfo("1", 5000)
+  mk <- function(bDepth) {
+    a <- GRanges("1", IRanges(140:160, 140:160), strand = "+"); a$score <- rep(2L, 21)
+    bp <- if (bDepth == "deep") 440:460 else 448:452
+    b <- GRanges("1", IRanges(bp, bp), strand = "+"); b$score <- rep(1L, length(bp))
+    gr <- sort(c(a, b)); GenomeInfoDb::seqinfo(gr) <- GenomeInfoDb::Seqinfo("1", 5000); gr
+  }
+  csl <- list(s1 = mk("deep"), s2 = mk("deep"), s3 = mk("shallow"))  # B: 42,42,5
+
+  set.seed(1)
+  strict <- suppressMessages(
+    tssShapeMatched(TSS, csl, minCount = 10, minFrac = 1, draws = 2))
+  expect_equal(rownames(strict$shannon), "A")            # B vetoed by s3
+
+  set.seed(1)
+  rescued <- suppressMessages(
+    tssShapeMatched(TSS, csl, minCount = 10, minFrac = 2 / 3, draws = 2))
+  expect_setequal(rownames(rescued$shannon), c("A", "B"))
+  expect_true(is.na(rescued$shannon["B", "s3"]))         # shallow sample left NA
+  expect_false(is.na(rescued$shannon["B", "s1"]))
+})
+
 test_that(".subsample returns counts unchanged when target exceeds the total", {
   n <- c(3L, 5L, 2L)
   expect_equal(tssUtils:::.subsample(n, size = 100), n)

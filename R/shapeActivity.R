@@ -113,8 +113,14 @@
 #'   per promoter is `pmin(perPromoterMin, target)`.
 #' @param draws Number of independent downsampling draws to average (default
 #'   10).
-#' @param minCount Promoters whose effective target is below this are dropped
-#'   (default 10).
+#' @param minCount A sample must have at least this many counts at a promoter to
+#'   contribute to it (default 10).
+#' @param minFrac Per-promoter rescue fraction. A promoter is retained if at
+#'   least this fraction of samples clear `minCount`; the qualifying samples are
+#'   depth-matched to their common minimum and the rest are left `NA` for that
+#'   promoter. The default `1` requires every sample to clear `minCount` (the
+#'   strict behaviour). Lower it (e.g. `0.8`) so a few shallow samples do not
+#'   veto an otherwise well-covered promoter.
 #' @param percentiles,minScore Passed to [tssShape()].
 #' @param replace If `FALSE` (default), downsample without replacement; if
 #'   `TRUE`, use the multinomial approximation.
@@ -135,8 +141,10 @@
 #' @author Benjamin Jean-Marie Tremblay, \email{benjamin.tremblay@tsl.ac.uk}
 #' @export
 tssShapeMatched <- function(TSS, countSignalList, target = NULL, draws = 10L,
-  minCount = 10L, percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8, 0.9, 1),
+  minCount = 10L, minFrac = 1, percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8, 0.9, 1),
   minScore = 0.5, replace = FALSE, antisense = FALSE) {
+
+  if (minFrac <= 0 || minFrac > 1) stop("minFrac must be in (0, 1]")
 
   if (is.null(mcols(TSS)$name)) TSS$name <- paste0("TSS_", seq_along(TSS))
   names(TSS) <- TSS$name
@@ -181,16 +189,25 @@ tssShapeMatched <- function(TSS, countSignalList, target = NULL, draws = 10L,
     for (p in seq_len(nT))
       if (!is.null(li[[p]])) senseTotal[p, i] <- sum(li[[p]]$n)
   }
-  perPromoterMin <- matrixStats::rowMins(senseTotal)
+  # A sample qualifies at a promoter if it clears minCount there. Depth-match
+  # only the qualifying samples (to their common minimum); leave the rest NA.
+  qual <- senseTotal >= minCount
+  nQual <- rowSums(qual)
+  qTotal <- senseTotal
+  qTotal[!qual] <- NA_integer_
+  perPromoterMin <- suppressWarnings(matrixStats::rowMins(qTotal, na.rm = TRUE))
+  perPromoterMin[!is.finite(perPromoterMin)] <- NA_real_
   effTarget <- if (is.null(target)) perPromoterMin
     else pmin(perPromoterMin, as.integer(target))
-  retain <- perPromoterMin >= minCount & effTarget >= minCount
+  retain <- nQual >= ceiling(minFrac * nS) & is.finite(effTarget) &
+    effTarget >= minCount
 
   nRetain <- sum(retain)
   message("tssShapeMatched(): retaining ", nRetain, "/", nT,
-    " promoters (", nT - nRetain, " dropped below minCount = ", minCount, ")")
+    " promoters (", nT - nRetain, " dropped); per-promoter qualifying samples ",
+    "(>= minCount = ", minCount, "): median ", stats::median(nQual), "/", nS)
   if (!nRetain)
-    stop("No promoters retained; lower minCount or check countSignalList depth")
+    stop("No promoters retained; lower minCount/minFrac or check depth")
 
   retIdx <- which(retain)
   TSSret <- TSS[retIdx]
@@ -209,6 +226,9 @@ tssShapeMatched <- function(TSS, countSignalList, target = NULL, draws = 10L,
   # by the same per-sample factor) for sample i.
   promoterContribution <- function(i, p) {
     pos <- integer(0); sco <- integer(0); st <- character(0)
+    # Samples that did not qualify at this promoter contribute nothing, so that
+    # (promoter, sample) cell comes back NA from tssShape().
+    if (!qual[p, i]) return(NULL)
     ns <- senseList[[i]][[p]]
     if (!is.null(ns) && length(ns$n)) {
       sub <- .subsample(ns$n, effTarget[p], replace)

@@ -6,7 +6,7 @@
 \usage{
 scanPromoterMotifs(TSS, genome, pwms, window = c(-50L, 10L),
   threshold = 1e-04, thresholdType = "pvalue", dominantPos = NULL,
-  ignoreStrand = FALSE)
+  ignoreStrand = FALSE, nthreads = 1L)
 }
 \arguments{
 \item{TSS}{A \code{GRanges} of TSSs (with \code{mcols$name}).}
@@ -35,6 +35,10 @@ genomic position that anchors each window. Defaults to \code{start(TSS)}.}
 \item{ignoreStrand}{If \code{FALSE} (default), both genomic strands are scanned
 and each hit is labelled sense or antisense relative to its TSS. If \code{TRUE},
 only the oriented sense sequence is scanned.}
+
+\item{nthreads}{Number of threads for \code{\link[universalmotif:scan_sequences]{universalmotif::scan_sequences()}}
+(the dominant cost). Defaults to \code{1}; set higher (e.g.
+\code{parallel::detectCores() - 2}) to scan a large motif library faster.}
 }
 \value{
 A list of class \code{"promoterMotifScan"} with two elements:

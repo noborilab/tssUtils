@@ -5,8 +5,8 @@
 \title{Depth-matched per-TSS shape statistics.}
 \usage{
 tssShapeMatched(TSS, countSignalList, target = NULL, draws = 10L,
-  minCount = 10L, percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8, 0.9, 1),
-  minScore = 0.5, replace = FALSE, antisense = FALSE)
+  minCount = 10L, minFrac = 1, percentiles = c(1e-99, 0.1, 0.2, 0.5, 0.8,
+  0.9, 1), minScore = 0.5, replace = FALSE, antisense = FALSE)
 }
 \arguments{
 \item{TSS}{A \code{GRanges} of TSS regions (with \code{mcols$name}).}
@@ -21,8 +21,15 @@ per promoter is \code{pmin(perPromoterMin, target)}.}
 \item{draws}{Number of independent downsampling draws to average (default
 10).}
 
-\item{minCount}{Promoters whose effective target is below this are dropped
-(default 10).}
+\item{minCount}{A sample must have at least this many counts at a promoter to
+contribute to it (default 10).}
+
+\item{minFrac}{Per-promoter rescue fraction. A promoter is retained if at
+least this fraction of samples clear \code{minCount}; the qualifying samples are
+depth-matched to their common minimum and the rest are left \code{NA} for that
+promoter. The default \code{1} requires every sample to clear \code{minCount} (the
+strict behaviour). Lower it (e.g. \code{0.8}) so a few shallow samples do not
+veto an otherwise well-covered promoter.}
 
 \item{percentiles, minScore}{Passed to \code{\link[=tssShape]{tssShape()}}.}
 
